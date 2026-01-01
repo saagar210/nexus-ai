@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   MessageSquare,
@@ -11,7 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { TabType } from "./types";
-import { checkHealth } from "./lib/api";
+import { checkHealth, exportData } from "./lib/api";
 
 // Import pages
 import ChatPage from "./pages/ChatPage";
@@ -20,6 +20,15 @@ import ProjectsPage from "./pages/ProjectsPage";
 import WritingPage from "./pages/WritingPage";
 import MemoryPage from "./pages/MemoryPage";
 import SettingsPage from "./pages/SettingsPage";
+
+// Import components
+import ErrorBoundary from "./components/ErrorBoundary";
+import CommandPalette from "./components/CommandPalette";
+import KeyboardShortcuts, {
+  useKeyboardShortcuts,
+} from "./components/KeyboardShortcuts";
+import GlobalSearch from "./components/GlobalSearch";
+import OnboardingFlow, { useOnboarding } from "./components/OnboardingFlow";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,11 +48,111 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
   { id: "settings", label: "Settings", icon: <Settings size={20} /> },
 ];
 
-function App(): React.ReactElement {
+// Theme management
+function useTheme(): {
+  isDark: boolean;
+  toggleTheme: () => void;
+} {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark");
+    }
+    return true;
+  });
+
+  const toggleTheme = useCallback(() => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    if (newIsDark) {
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+    }
+    localStorage.setItem("nexus_theme", newIsDark ? "dark" : "light");
+  }, [isDark]);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("nexus_theme");
+    if (savedTheme === "light") {
+      setIsDark(false);
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+    }
+  }, []);
+
+  return { isDark, toggleTheme };
+}
+
+function AppContent(): React.ReactElement {
   const [currentTab, setCurrentTab] = useState<TabType>("chat");
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  // Modal states
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Theme
+  const { toggleTheme } = useTheme();
+
+  // Onboarding
+  const { showOnboarding, completeOnboarding } = useOnboarding();
+
+  // Navigation handler
+  const handleNavigate = useCallback((path: string) => {
+    const tabMap: Record<string, TabType> = {
+      "/chat": "chat",
+      "/documents": "documents",
+      "/projects": "projects",
+      "/writing": "writing",
+      "/memory": "memory",
+      "/settings": "settings",
+    };
+    const tab = tabMap[path];
+    if (tab) {
+      setCurrentTab(tab);
+    }
+  }, []);
+
+  // New chat handler
+  const handleNewChat = useCallback(() => {
+    setCurrentTab("chat");
+    // The ChatPage component will handle creating a new session
+  }, []);
+
+  // Export data handler
+  const handleExportData = useCallback(async () => {
+    try {
+      const data = await exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nexus-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export failed:", error);
+    }
+  }, []);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts(
+    handleNavigate,
+    handleNewChat,
+    toggleTheme,
+    () => setShowCommandPalette(true),
+    () => setShowShortcuts(true),
+  );
+
+  // Health check
   useEffect(() => {
     const checkConnection = async (): Promise<void> => {
       try {
@@ -65,6 +174,25 @@ function App(): React.ReactElement {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle search result selection
+  const handleSearchResult = useCallback(
+    (result: { type: string; id: string }) => {
+      switch (result.type) {
+        case "session":
+          setCurrentTab("chat");
+          // Could pass session ID to ChatPage
+          break;
+        case "document":
+          setCurrentTab("documents");
+          break;
+        case "memory":
+          setCurrentTab("memory");
+          break;
+      }
+    },
+    [],
+  );
+
   const renderPage = (): React.ReactNode => {
     switch (currentTab) {
       case "chat":
@@ -85,7 +213,34 @@ function App(): React.ReactElement {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
+      {/* Onboarding */}
+      <OnboardingFlow isOpen={showOnboarding} onComplete={completeOnboarding} />
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onNavigate={handleNavigate}
+        onNewChat={handleNewChat}
+        onExportData={handleExportData}
+        onToggleTheme={toggleTheme}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcuts
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
+
+      {/* Global Search */}
+      <GlobalSearch
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onSelectResult={handleSearchResult}
+      />
+
+      {/* Main App Layout */}
       <div className="flex h-screen bg-background">
         {/* Sidebar */}
         <aside className="w-16 bg-card border-r border-border flex flex-col items-center py-4">
@@ -139,7 +294,17 @@ function App(): React.ReactElement {
           <div className="flex-1 overflow-hidden">{renderPage()}</div>
         </main>
       </div>
-    </QueryClientProvider>
+    </>
+  );
+}
+
+function App(): React.ReactElement {
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

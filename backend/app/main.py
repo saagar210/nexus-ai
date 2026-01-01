@@ -14,7 +14,7 @@ from .services.rag_service import rag_service
 from .services.ollama_service import ollama_service
 
 # Import API routers
-from .api import chat, documents, memory, projects, writing, webcapture, settings as settings_api
+from .api import chat, documents, memory, projects, writing, webcapture, settings as settings_api, backup
 
 
 @asynccontextmanager
@@ -103,6 +103,7 @@ app.include_router(projects.router, prefix="/api")
 app.include_router(writing.router, prefix="/api")
 app.include_router(webcapture.router, prefix="/api")
 app.include_router(settings_api.router, prefix="/api")
+app.include_router(backup.router, prefix="/api")
 
 
 @app.get("/")

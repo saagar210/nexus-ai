@@ -14,7 +14,9 @@ tauri-build = { version = "1.5", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.6", features = [ "fs-create-dir", "clipboard-all", "dialog-all", "fs-exists", "fs-read-dir", "fs-read-file", "fs-write-file", "notification-all", "path-all", "shell-open"] }
+tauri = { version = "1.6", features = [ "fs-create-dir", "clipboard-all", "dialog-all", "fs-exists", "fs-read-dir", "fs-read-file", "fs-write-file", "notification-all", "path-all", "shell-open", "process-command-api"] }
+reqwest = { version = "0.11", features = ["blocking"] }
+dirs = "5.0"
 
 [features]
 default = ["custom-protocol"]

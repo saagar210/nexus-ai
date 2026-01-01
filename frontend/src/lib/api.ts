@@ -539,4 +539,93 @@ export async function clearAllData(): Promise<void> {
   await api.post("/settings/clear-all");
 }
 
+// === Backup API ===
+
+export interface BackupInfo {
+  filename: string;
+  path: string;
+  size_bytes: number;
+  created_at: string;
+  encrypted: boolean;
+}
+
+export async function createBackup(
+  includeDocuments = true,
+  includeChromadb = true,
+  encrypt = false,
+): Promise<{
+  success: boolean;
+  filename: string;
+  path: string;
+  size_bytes: number;
+}> {
+  const { data } = await api.post("/backup/create", null, {
+    params: {
+      include_documents: includeDocuments,
+      include_chromadb: includeChromadb,
+      encrypt,
+    },
+  });
+  return data;
+}
+
+export async function listBackups(): Promise<BackupInfo[]> {
+  const { data } = await api.get<BackupInfo[]>("/backup/list");
+  return data;
+}
+
+export async function downloadBackup(filename: string): Promise<void> {
+  const response = await api.get(`/backup/download/${filename}`, {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function restoreBackup(
+  filename: string,
+  restoreDocuments = true,
+  restoreChromadb = true,
+  merge = false,
+): Promise<{ success: boolean; stats: Record<string, number> }> {
+  const { data } = await api.post(`/backup/restore/${filename}`, null, {
+    params: {
+      restore_documents: restoreDocuments,
+      restore_chromadb: restoreChromadb,
+      merge,
+    },
+  });
+  return data;
+}
+
+export async function deleteBackup(filename: string): Promise<void> {
+  await api.delete(`/backup/${filename}`);
+}
+
+export async function uploadAndRestoreBackup(
+  file: File,
+  restoreDocuments = true,
+  restoreChromadb = true,
+  merge = false,
+): Promise<{ success: boolean; stats: Record<string, number> }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await api.post("/backup/restore", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    params: {
+      restore_documents: restoreDocuments,
+      restore_chromadb: restoreChromadb,
+      merge,
+    },
+  });
+  return data;
+}
+
 export default api;
