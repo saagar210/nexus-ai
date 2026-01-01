@@ -8,6 +8,10 @@ import {
   FileText,
   Clock,
   ChevronRight,
+  Settings2,
+  BookMarked,
+  X,
+  Sparkles,
 } from "lucide-react";
 import type { ChatMessage, Session } from "../types";
 import {
@@ -17,6 +21,12 @@ import {
   deleteSession,
   streamMessage,
 } from "../lib/api";
+import SystemPrompts, {
+  useActiveSystemPrompt,
+} from "../components/SystemPrompts";
+import type { SavedPrompt } from "../components/SystemPrompts";
+import PromptTemplates from "../components/PromptTemplates";
+import type { PromptTemplate } from "../components/PromptTemplates";
 
 export default function ChatPage(): React.ReactElement {
   const queryClient = useQueryClient();
@@ -27,8 +37,14 @@ export default function ChatPage(): React.ReactElement {
   const [currentModel, setCurrentModel] = useState<string | null>(null);
   const [routingReason, setRoutingReason] = useState<string | null>(null);
   const [documentsUsed, setDocumentsUsed] = useState<string[]>([]);
+  const [rightPanel, setRightPanel] = useState<
+    "none" | "system-prompts" | "templates"
+  >("none");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Get active system prompt
+  const { activePrompt, setActivePrompt } = useActiveSystemPrompt();
 
   // Fetch sessions
   const { data: sessions = [] } = useQuery({
@@ -105,6 +121,7 @@ export default function ChatPage(): React.ReactElement {
       for await (const chunk of streamMessage({
         message: userMessage.content,
         session_id: sessionId || undefined,
+        system_prompt: activePrompt?.content,
       })) {
         if (chunk.type === "metadata") {
           sessionId = chunk.session_id || sessionId;
@@ -147,7 +164,14 @@ export default function ChatPage(): React.ReactElement {
     } finally {
       setIsStreaming(false);
     }
-  }, [input, isStreaming, currentSessionId, currentModel, queryClient]);
+  }, [
+    input,
+    isStreaming,
+    currentSessionId,
+    currentModel,
+    queryClient,
+    activePrompt,
+  ]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent): void => {
@@ -155,6 +179,28 @@ export default function ChatPage(): React.ReactElement {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Handle template selection
+  const handleTemplateSelect = (
+    _template: PromptTemplate,
+    filledPrompt: string,
+  ): void => {
+    setInput(filledPrompt);
+    setRightPanel("none");
+    inputRef.current?.focus();
+  };
+
+  // Handle saved prompt usage
+  const handleUseSavedPrompt = (prompt: SavedPrompt): void => {
+    setInput(prompt.content);
+    setRightPanel("none");
+    inputRef.current?.focus();
+  };
+
+  // Toggle right panel
+  const togglePanel = (panel: "system-prompts" | "templates"): void => {
+    setRightPanel((current) => (current === panel ? "none" : panel));
   };
 
   return (
@@ -306,6 +352,42 @@ export default function ChatPage(): React.ReactElement {
 
         {/* Input */}
         <div className="border-t border-border p-4">
+          {/* Active System Prompt Indicator */}
+          {activePrompt && (
+            <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+              <Sparkles size={14} className="text-nexus-500" />
+              <span>
+                Using: <span className="font-medium">{activePrompt.name}</span>
+              </span>
+            </div>
+          )}
+
+          {/* Input Toolbar */}
+          <div className="flex items-center gap-1 mb-2">
+            <button
+              onClick={() => togglePanel("system-prompts")}
+              className={`p-2 rounded-lg transition-colors ${
+                rightPanel === "system-prompts"
+                  ? "bg-nexus-500/10 text-nexus-500"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+              title="System Prompts"
+            >
+              <Settings2 size={18} />
+            </button>
+            <button
+              onClick={() => togglePanel("templates")}
+              className={`p-2 rounded-lg transition-colors ${
+                rightPanel === "templates"
+                  ? "bg-nexus-500/10 text-nexus-500"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+              title="Prompt Templates"
+            >
+              <BookMarked size={18} />
+            </button>
+          </div>
+
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -327,6 +409,35 @@ export default function ChatPage(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {/* Right Panel - System Prompts / Templates */}
+      {rightPanel !== "none" && (
+        <div className="w-80 border-l border-border bg-card flex flex-col">
+          <div className="flex items-center justify-between p-3 border-b border-border">
+            <h3 className="font-medium">
+              {rightPanel === "system-prompts" ? "System Prompts" : "Templates"}
+            </h3>
+            <button
+              onClick={() => setRightPanel("none")}
+              className="p-1 hover:bg-muted rounded"
+            >
+              <X size={16} className="text-muted-foreground" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {rightPanel === "system-prompts" && (
+              <SystemPrompts
+                onSelectSystemPrompt={setActivePrompt}
+                onUseSavedPrompt={handleUseSavedPrompt}
+                activePromptId={activePrompt?.id}
+              />
+            )}
+            {rightPanel === "templates" && (
+              <PromptTemplates onSelectTemplate={handleTemplateSelect} />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

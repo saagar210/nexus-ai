@@ -49,6 +49,7 @@ export interface ChatRequest {
   include_documents?: boolean;
   include_memory?: boolean;
   project_context?: string;
+  system_prompt?: string;
 }
 
 export interface ChatResponse {

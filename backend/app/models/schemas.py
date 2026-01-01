@@ -66,6 +66,7 @@ class ChatRequest(BaseSchema):
     include_documents: bool = True
     include_memory: bool = True
     project_context: Optional[str] = None
+    system_prompt: Optional[str] = Field(None, description="Custom system prompt")
 
 
 class ChatResponse(BaseSchema):

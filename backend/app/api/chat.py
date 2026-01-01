@@ -50,7 +50,8 @@ async def chat_stream(
                 session_id=request.session_id,
                 model_override=request.model_override,
                 include_documents=request.include_documents,
-                include_memory=request.include_memory
+                include_memory=request.include_memory,
+                system_prompt=request.system_prompt
             ):
                 yield f"data: {json.dumps(chunk)}\n\n"
         except Exception as e:

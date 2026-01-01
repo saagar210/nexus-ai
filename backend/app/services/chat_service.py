@@ -258,7 +258,8 @@ Key behaviors:
         session_id: Optional[str] = None,
         model_override: Optional[str] = None,
         include_documents: bool = True,
-        include_memory: bool = True
+        include_memory: bool = True,
+        system_prompt: Optional[str] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream chat response"""
         # Get or create session
@@ -281,11 +282,20 @@ Key behaviors:
                 document_context = f"\nRelevant documents:\n{doc_context}"
                 documents_used = doc_titles
 
-        # Build system prompt
-        system_prompt = self.SYSTEM_PROMPT.format(
-            memory_context=memory_context if memory_context else "No specific user context available.",
-            document_context=document_context if document_context else "No relevant documents found."
-        )
+        # Build system prompt - use custom if provided, otherwise default
+        if system_prompt:
+            # Append context to custom system prompt
+            context_addon = ""
+            if memory_context:
+                context_addon += f"\n\nUser Context:\n{memory_context}"
+            if document_context:
+                context_addon += f"\n{document_context}"
+            final_system_prompt = system_prompt + context_addon
+        else:
+            final_system_prompt = self.SYSTEM_PROMPT.format(
+                memory_context=memory_context if memory_context else "No specific user context available.",
+                document_context=document_context if document_context else "No relevant documents found."
+            )
 
         # Get history and build messages
         history = await self.get_session_messages(db, session.id)
@@ -309,7 +319,7 @@ Key behaviors:
         async for chunk in ollama_service.chat_stream(
             model=model,
             messages=messages,
-            system=system_prompt,
+            system=final_system_prompt,
             options={"temperature": 0.7}
         ):
             if "message" in chunk and "content" in chunk["message"]:
