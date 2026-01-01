@@ -1,8 +1,13 @@
 """Pydantic schemas for API request/response models"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
+
+
+# Base config to allow model_ prefix fields
+class BaseSchema(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
 
 
 # === Enums ===
@@ -46,7 +51,7 @@ class MemoryType(str, Enum):
 
 # === Chat Schemas ===
 
-class ChatMessage(BaseModel):
+class ChatMessage(BaseSchema):
     role: str = Field(..., description="Role: 'user' or 'assistant'")
     content: str = Field(..., description="Message content")
     timestamp: Optional[datetime] = None
@@ -54,7 +59,7 @@ class ChatMessage(BaseModel):
     task_type: Optional[TaskType] = None
 
 
-class ChatRequest(BaseModel):
+class ChatRequest(BaseSchema):
     message: str = Field(..., description="User message")
     session_id: Optional[str] = None
     model_override: Optional[str] = None
@@ -63,7 +68,7 @@ class ChatRequest(BaseModel):
     project_context: Optional[str] = None
 
 
-class ChatResponse(BaseModel):
+class ChatResponse(BaseSchema):
     response: str
     session_id: str
     model_used: str
@@ -73,7 +78,7 @@ class ChatResponse(BaseModel):
     memory_context: Optional[str] = None
 
 
-class StreamChunk(BaseModel):
+class StreamChunk(BaseSchema):
     content: str
     done: bool = False
     model_used: Optional[str] = None
@@ -223,7 +228,7 @@ class WritingRequest(BaseModel):
     additional_instructions: Optional[str] = None
 
 
-class WritingResponse(BaseModel):
+class WritingResponse(BaseSchema):
     drafts: List[str]
     model_used: str
     style_notes: Optional[str] = None
@@ -262,13 +267,13 @@ class WatchFolder(BaseModel):
     recursive: bool = True
 
 
-class SettingsUpdate(BaseModel):
+class SettingsUpdate(BaseSchema):
     watch_folders: Optional[List[WatchFolder]] = None
     default_model: Optional[str] = None
     model_routing: Optional[Dict[str, str]] = None
 
 
-class SettingsResponse(BaseModel):
+class SettingsResponse(BaseSchema):
     watch_folders: List[WatchFolder]
     available_models: List[str]
     model_routing: Dict[str, str]

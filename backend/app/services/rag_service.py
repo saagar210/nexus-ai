@@ -30,7 +30,7 @@ class RAGService:
         """Get or create ChromaDB client"""
         if self._client is None:
             self._client = chromadb.Client(ChromaSettings(
-                chroma_db_impl="duckdb+parquet",
+                is_persistent=True,
                 persist_directory=str(settings.CHROMADB_DIR),
                 anonymized_telemetry=False
             ))
@@ -145,7 +145,7 @@ class RAGService:
             size_bytes=size_bytes,
             content_hash=content_hash,
             tags=tags,
-            metadata=metadata,
+            doc_metadata=metadata,
             source_url=source_url
         )
         db.add(doc)

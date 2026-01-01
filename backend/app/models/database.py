@@ -68,7 +68,7 @@ class Document(Base):
     size_bytes = Column(Integer, default=0)
     content_hash = Column(String(64))  # For change detection
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    doc_metadata = Column(JSON, default=dict)
     chunk_count = Column(Integer, default=0)
     source_url = Column(String(2000))  # For web captures
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -91,7 +91,7 @@ class DocumentChunk(Base):
     chunk_index = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
     embedding_id = Column(String(100))  # ID in ChromaDB
-    metadata = Column(JSON, default=dict)
+    chunk_metadata = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (
