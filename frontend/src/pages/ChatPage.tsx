@@ -9,7 +9,7 @@ import {
   Clock,
   ChevronRight,
 } from "lucide-react";
-import type { ChatMessage, Session, StreamChunk } from "../types";
+import type { ChatMessage, Session } from "../types";
 import {
   listSessions,
   getSession,
@@ -163,7 +163,7 @@ export default function ChatPage(): React.ReactElement {
       <div className="w-64 bg-card border-r border-border flex flex-col">
         <div className="p-4 border-b border-border">
           <button
-            onClick={() => createSessionMutation.mutate()}
+            onClick={() => createSessionMutation.mutate(undefined)}
             className="w-full flex items-center justify-center gap-2 bg-nexus-500 text-white rounded-lg px-4 py-2 hover:bg-nexus-600 transition-colors"
           >
             <Plus size={18} />

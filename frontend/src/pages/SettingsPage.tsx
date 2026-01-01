@@ -355,7 +355,7 @@ export default function SettingsPage(): React.ReactElement {
                   About You
                 </label>
                 <textarea
-                  value={profile.preferences?.about || ""}
+                  value={(profile.preferences?.about as string) || ""}
                   onChange={(e) =>
                     setProfile({
                       ...profile,

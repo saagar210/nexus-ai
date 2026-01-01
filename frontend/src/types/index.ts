@@ -145,6 +145,7 @@ export interface Memory {
 
 export interface UserProfile {
   name: string;
+  email?: string;
   age?: number;
   job?: string;
   location?: string;
