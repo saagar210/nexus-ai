@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.database import get_db
+from ..core.database import get_db
 from ..services.backup_service import backup_service
 
 router = APIRouter(prefix="/backup", tags=["backup"])
