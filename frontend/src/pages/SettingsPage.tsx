@@ -13,6 +13,8 @@ import {
   AlertCircle,
   HardDrive,
   Zap,
+  Palette,
+  Shield,
 } from "lucide-react";
 import type { UserProfile, OllamaModel, WatchFolder } from "../types";
 import {
@@ -26,6 +28,8 @@ import {
   exportData,
   clearAllData,
 } from "../lib/api";
+import ThemeCustomizer, { useCustomTheme } from "../components/ThemeCustomizer";
+import SecuritySettingsPanel from "../components/SecuritySettings";
 
 export default function SettingsPage(): React.ReactElement {
   const queryClient = useQueryClient();
@@ -33,6 +37,10 @@ export default function SettingsPage(): React.ReactElement {
   const [newFolderPath, setNewFolderPath] = useState("");
   const [pullModelName, setPullModelName] = useState("");
   const [isPulling, setIsPulling] = useState(false);
+  const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
+
+  // Theme hook for appearance section
+  const { colors } = useCustomTheme();
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -129,6 +137,8 @@ export default function SettingsPage(): React.ReactElement {
     { id: "models", label: "Models", icon: <Cpu size={18} /> },
     { id: "folders", label: "Watch Folders", icon: <FolderOpen size={18} /> },
     { id: "profile", label: "Profile", icon: <User size={18} /> },
+    { id: "appearance", label: "Appearance", icon: <Palette size={18} /> },
+    { id: "security", label: "Security", icon: <Shield size={18} /> },
     { id: "data", label: "Data Management", icon: <HardDrive size={18} /> },
   ];
 
@@ -384,6 +394,75 @@ export default function SettingsPage(): React.ReactElement {
           </div>
         )}
 
+        {activeSection === "appearance" && (
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-bold mb-2">Appearance</h2>
+            <p className="text-muted-foreground mb-6">
+              Customize the look and feel of Nexus AI
+            </p>
+
+            {/* Current Theme Preview */}
+            <div className="bg-card border border-border rounded-lg p-4 mb-6">
+              <h3 className="font-medium mb-4 flex items-center gap-2">
+                <Palette size={18} className="text-nexus-500" />
+                Current Theme
+              </h3>
+
+              <div className="grid grid-cols-6 gap-3 mb-4">
+                {Object.entries(colors).map(([name, color]) => (
+                  <div key={name} className="text-center">
+                    <div
+                      className="w-full aspect-square rounded-lg border border-border mb-1"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setShowThemeCustomizer(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-nexus-500 text-white rounded-lg hover:bg-nexus-600"
+              >
+                <Palette size={16} />
+                Customize Theme
+              </button>
+            </div>
+
+            {/* Quick Settings */}
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h3 className="font-medium mb-4">Display Options</h3>
+              <div className="space-y-4">
+                <label className="flex items-center justify-between">
+                  <span className="text-sm">Reduce animations</span>
+                  <input type="checkbox" className="rounded" />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-sm">Compact message view</span>
+                  <input type="checkbox" className="rounded" />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-sm">Show timestamps</span>
+                  <input type="checkbox" defaultChecked className="rounded" />
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSection === "security" && (
+          <div className="max-w-2xl">
+            <SecuritySettingsPanel
+              onSettingsChange={(newSettings) => {
+                console.log("Security settings updated:", newSettings);
+                // In a real implementation, save to backend/localStorage
+              }}
+            />
+          </div>
+        )}
+
         {activeSection === "data" && (
           <div className="max-w-2xl">
             <h2 className="text-xl font-bold mb-2">Data Management</h2>
@@ -437,6 +516,12 @@ export default function SettingsPage(): React.ReactElement {
           </div>
         )}
       </div>
+
+      {/* Theme Customizer Modal */}
+      <ThemeCustomizer
+        isOpen={showThemeCustomizer}
+        onClose={() => setShowThemeCustomizer(false)}
+      />
     </div>
   );
 }

@@ -12,6 +12,8 @@ import {
   BookMarked,
   X,
   Sparkles,
+  Download,
+  Bot,
 } from "lucide-react";
 import type { ChatMessage, Session } from "../types";
 import {
@@ -28,6 +30,16 @@ import type { SavedPrompt } from "../components/SystemPrompts";
 import PromptTemplates from "../components/PromptTemplates";
 import type { PromptTemplate } from "../components/PromptTemplates";
 
+// Import new components
+import MarkdownRenderer from "../components/MarkdownRenderer";
+import MessageActions from "../components/MessageActions";
+import VoiceInput from "../components/VoiceInput";
+import ContextIndicator from "../components/ContextIndicator";
+import StreamingIndicator from "../components/StreamingIndicator";
+import ChatExport from "../components/ChatExport";
+import ModelSelector, { useModelSelection } from "../components/MultiModelChat";
+import AgentModeToggle, { useAgentMode } from "../components/AgentMode";
+
 export default function ChatPage(): React.ReactElement {
   const queryClient = useQueryClient();
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -38,13 +50,19 @@ export default function ChatPage(): React.ReactElement {
   const [routingReason, setRoutingReason] = useState<string | null>(null);
   const [documentsUsed, setDocumentsUsed] = useState<string[]>([]);
   const [rightPanel, setRightPanel] = useState<
-    "none" | "system-prompts" | "templates"
+    "none" | "system-prompts" | "templates" | "export"
   >("none");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Get active system prompt
   const { activePrompt, setActivePrompt } = useActiveSystemPrompt();
+
+  // Model selection hook
+  const { selectedModel, setSelectedModel } = useModelSelection();
+
+  // Agent mode hook
+  const { isAgentMode, toggleAgentMode } = useAgentMode();
 
   // Fetch sessions
   const { data: sessions = [] } = useQuery({
@@ -122,6 +140,7 @@ export default function ChatPage(): React.ReactElement {
         message: userMessage.content,
         session_id: sessionId || undefined,
         system_prompt: activePrompt?.content,
+        model_override: selectedModel || undefined,
       })) {
         if (chunk.type === "metadata") {
           sessionId = chunk.session_id || sessionId;
@@ -171,6 +190,7 @@ export default function ChatPage(): React.ReactElement {
     currentModel,
     queryClient,
     activePrompt,
+    selectedModel,
   ]);
 
   // Handle keyboard shortcuts
@@ -198,10 +218,51 @@ export default function ChatPage(): React.ReactElement {
     inputRef.current?.focus();
   };
 
+  // Handle voice transcript
+  const handleVoiceTranscript = (text: string): void => {
+    setInput((prev) => prev + (prev ? " " : "") + text);
+  };
+
+  // Handle message edit
+  const handleMessageEdit = (index: number, newContent: string): void => {
+    setMessages((prev) => {
+      const newMessages = [...prev];
+      newMessages[index] = { ...newMessages[index], content: newContent };
+      return newMessages;
+    });
+  };
+
+  // Handle message regenerate
+  const handleRegenerate = async (index: number): Promise<void> => {
+    // Find the user message before this assistant message
+    if (messages[index].role !== "assistant" || index === 0) return;
+
+    const userMessage = messages[index - 1];
+    if (userMessage.role !== "user") return;
+
+    // Remove the current assistant response
+    setMessages((prev) => prev.slice(0, index));
+
+    // Resend the user message
+    setInput(userMessage.content);
+  };
+
+  // Handle message delete
+  const handleMessageDelete = (index: number): void => {
+    setMessages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Toggle right panel
-  const togglePanel = (panel: "system-prompts" | "templates"): void => {
+  const togglePanel = (
+    panel: "system-prompts" | "templates" | "export",
+  ): void => {
     setRightPanel((current) => (current === panel ? "none" : panel));
   };
+
+  // Get current session for export
+  const currentSession = sessions.find(
+    (s: Session) => s.id === currentSessionId,
+  );
 
   return (
     <div className="flex h-full">
@@ -263,34 +324,64 @@ export default function ChatPage(): React.ReactElement {
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Model Info Bar */}
-        {currentModel && (
-          <div className="bg-muted/50 border-b border-border px-4 py-2 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Cpu size={14} />
-              <span className="font-medium text-foreground">
-                {currentModel}
-              </span>
-            </div>
-            {routingReason && (
+        <div className="bg-muted/50 border-b border-border px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-4 text-sm">
+            {currentModel ? (
               <>
-                <ChevronRight size={14} className="text-muted-foreground" />
-                <span className="text-muted-foreground">{routingReason}</span>
-              </>
-            )}
-            {documentsUsed.length > 0 && (
-              <>
-                <ChevronRight size={14} className="text-muted-foreground" />
-                <div className="flex items-center gap-1">
-                  <FileText size={14} className="text-nexus-500" />
-                  <span className="text-muted-foreground">
-                    {documentsUsed.length} doc
-                    {documentsUsed.length > 1 ? "s" : ""} referenced
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Cpu size={14} />
+                  <span className="font-medium text-foreground">
+                    {currentModel}
                   </span>
                 </div>
+                {routingReason && (
+                  <>
+                    <ChevronRight size={14} className="text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      {routingReason}
+                    </span>
+                  </>
+                )}
+                {documentsUsed.length > 0 && (
+                  <>
+                    <ChevronRight size={14} className="text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                      <FileText size={14} className="text-nexus-500" />
+                      <span className="text-muted-foreground">
+                        {documentsUsed.length} doc
+                        {documentsUsed.length > 1 ? "s" : ""} referenced
+                      </span>
+                    </div>
+                  </>
+                )}
               </>
+            ) : (
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+              />
             )}
           </div>
-        )}
+
+          <div className="flex items-center gap-2">
+            {/* Context Indicator */}
+            <ContextIndicator messages={messages} />
+
+            {/* Agent Mode Toggle */}
+            <AgentModeToggle
+              isEnabled={isAgentMode}
+              onToggle={toggleAgentMode}
+            />
+
+            {/* Streaming Indicator */}
+            {isStreaming && (
+              <StreamingIndicator
+                isStreaming={isStreaming}
+                content={messages[messages.length - 1]?.content || ""}
+              />
+            )}
+          </div>
+        </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -308,6 +399,12 @@ export default function ChatPage(): React.ReactElement {
                   and smart model routing. Start a conversation or drop files to
                   get started.
                 </p>
+                {isAgentMode && (
+                  <div className="mt-4 p-3 bg-nexus-500/10 rounded-lg text-sm">
+                    <Bot className="inline mr-2" size={16} />
+                    Agent mode is enabled. The AI can use tools to help you.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -315,22 +412,41 @@ export default function ChatPage(): React.ReactElement {
           {messages.map((message, idx) => (
             <div
               key={idx}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
+              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-fade-in group`}
             >
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                className={`max-w-[80%] rounded-2xl px-4 py-3 relative ${
                   message.role === "user"
                     ? "bg-nexus-500 text-white"
                     : "bg-muted"
                 }`}
               >
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                {message.role === "assistant" ? (
+                  <MarkdownRenderer content={message.content} />
+                ) : (
+                  <div className="whitespace-pre-wrap">{message.content}</div>
+                )}
                 {message.model_used && (
                   <div className="text-xs opacity-70 mt-2 flex items-center gap-1">
                     <Cpu size={10} />
                     {message.model_used}
                   </div>
                 )}
+
+                {/* Message Actions */}
+                <div className="absolute -bottom-8 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MessageActions
+                    content={message.content}
+                    role={message.role}
+                    onEdit={(newContent) => handleMessageEdit(idx, newContent)}
+                    onRegenerate={
+                      message.role === "assistant"
+                        ? () => handleRegenerate(idx)
+                        : undefined
+                    }
+                    onDelete={() => handleMessageDelete(idx)}
+                  />
+                </div>
               </div>
             </div>
           ))}
@@ -339,9 +455,18 @@ export default function ChatPage(): React.ReactElement {
             <div className="flex justify-start">
               <div className="bg-muted rounded-2xl px-4 py-3">
                 <div className="typing-indicator flex gap-1">
-                  <span className="w-2 h-2 bg-muted-foreground rounded-full" />
-                  <span className="w-2 h-2 bg-muted-foreground rounded-full" />
-                  <span className="w-2 h-2 bg-muted-foreground rounded-full" />
+                  <span
+                    className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <span
+                    className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span
+                    className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  />
                 </div>
               </div>
             </div>
@@ -386,6 +511,20 @@ export default function ChatPage(): React.ReactElement {
             >
               <BookMarked size={18} />
             </button>
+            <button
+              onClick={() => togglePanel("export")}
+              className={`p-2 rounded-lg transition-colors ${
+                rightPanel === "export"
+                  ? "bg-nexus-500/10 text-nexus-500"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+              title="Export Chat"
+            >
+              <Download size={18} />
+            </button>
+
+            {/* Voice Input */}
+            <VoiceInput onTranscript={handleVoiceTranscript} />
           </div>
 
           <div className="flex items-end gap-2">
@@ -410,12 +549,14 @@ export default function ChatPage(): React.ReactElement {
         </div>
       </div>
 
-      {/* Right Panel - System Prompts / Templates */}
+      {/* Right Panel - System Prompts / Templates / Export */}
       {rightPanel !== "none" && (
         <div className="w-80 border-l border-border bg-card flex flex-col">
           <div className="flex items-center justify-between p-3 border-b border-border">
             <h3 className="font-medium">
-              {rightPanel === "system-prompts" ? "System Prompts" : "Templates"}
+              {rightPanel === "system-prompts" && "System Prompts"}
+              {rightPanel === "templates" && "Templates"}
+              {rightPanel === "export" && "Export Chat"}
             </h3>
             <button
               onClick={() => setRightPanel("none")}
@@ -434,6 +575,16 @@ export default function ChatPage(): React.ReactElement {
             )}
             {rightPanel === "templates" && (
               <PromptTemplates onSelectTemplate={handleTemplateSelect} />
+            )}
+            {rightPanel === "export" && currentSession && (
+              <div className="p-4">
+                <ChatExport
+                  messages={messages}
+                  sessionTitle={currentSession.title}
+                  isOpen={rightPanel === "export"}
+                  onClose={() => setRightPanel("none")}
+                />
+              </div>
             )}
           </div>
         </div>

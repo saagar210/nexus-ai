@@ -9,6 +9,8 @@ import {
   Settings,
   Zap,
   AlertCircle,
+  BarChart3,
+  Code,
 } from "lucide-react";
 import type { TabType } from "./types";
 import { checkHealth, exportData } from "./lib/api";
@@ -19,6 +21,8 @@ import DocumentsPage from "./pages/DocumentsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import WritingPage from "./pages/WritingPage";
 import MemoryPage from "./pages/MemoryPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import DeveloperPage from "./pages/DeveloperPage";
 import SettingsPage from "./pages/SettingsPage";
 
 // Import components
@@ -29,6 +33,7 @@ import KeyboardShortcuts, {
 } from "./components/KeyboardShortcuts";
 import GlobalSearch from "./components/GlobalSearch";
 import OnboardingFlow, { useOnboarding } from "./components/OnboardingFlow";
+import { NetworkStatusBanner } from "./components/OfflineMode";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,6 +50,8 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
   { id: "projects", label: "Projects", icon: <FolderKanban size={20} /> },
   { id: "writing", label: "Writing", icon: <PenTool size={20} /> },
   { id: "memory", label: "Memory", icon: <Brain size={20} /> },
+  { id: "analytics", label: "Analytics", icon: <BarChart3 size={20} /> },
+  { id: "developer", label: "Developer", icon: <Code size={20} /> },
   { id: "settings", label: "Settings", icon: <Settings size={20} /> },
 ];
 
@@ -109,6 +116,8 @@ function AppContent(): React.ReactElement {
       "/projects": "projects",
       "/writing": "writing",
       "/memory": "memory",
+      "/analytics": "analytics",
+      "/developer": "developer",
       "/settings": "settings",
     };
     const tab = tabMap[path];
@@ -205,6 +214,10 @@ function AppContent(): React.ReactElement {
         return <WritingPage />;
       case "memory":
         return <MemoryPage />;
+      case "analytics":
+        return <AnalyticsPage />;
+      case "developer":
+        return <DeveloperPage />;
       case "settings":
         return <SettingsPage />;
       default:
@@ -214,6 +227,9 @@ function AppContent(): React.ReactElement {
 
   return (
     <>
+      {/* Network Status Banner */}
+      <NetworkStatusBanner />
+
       {/* Onboarding */}
       <OnboardingFlow isOpen={showOnboarding} onComplete={completeOnboarding} />
 

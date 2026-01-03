@@ -246,4 +246,6 @@ export type TabType =
   | "projects"
   | "writing"
   | "memory"
+  | "analytics"
+  | "developer"
   | "settings";
