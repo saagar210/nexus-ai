@@ -5,6 +5,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from ..models.database import Session as ChatSession, Message
 from ..models.schemas import ChatMessage, TaskType, ChatResponse
@@ -73,7 +74,7 @@ Key behaviors:
         include_archived: bool = False
     ) -> List[ChatSession]:
         """List chat sessions"""
-        stmt = select(ChatSession)
+        stmt = select(ChatSession).options(selectinload(ChatSession.messages))
         if not include_archived:
             stmt = stmt.where(ChatSession.is_archived == False)
         stmt = stmt.order_by(ChatSession.updated_at.desc()).limit(limit)
